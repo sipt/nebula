@@ -69,3 +69,7 @@ func (t *tun) Name() string {
 func (t *tun) NewMultiQueueReader() (io.ReadWriteCloser, error) {
 	return nil, fmt.Errorf("TODO: multiqueue not implemented for android")
 }
+
+func (t *tun) FD() int {
+	return t.fd
+}

@@ -21,6 +21,7 @@ type tun struct {
 	io.ReadWriteCloser
 	cidr      *net.IPNet
 	routeTree *cidr.Tree4
+	fd        int
 }
 
 func newTun(_ *logrus.Logger, _ string, _ *net.IPNet, _ int, _ []Route, _ int, _ bool, _ bool) (*tun, error) {
@@ -38,7 +39,12 @@ func newTunFromFd(l *logrus.Logger, deviceFd int, cidr *net.IPNet, _ int, routes
 		cidr:            cidr,
 		ReadWriteCloser: &tunReadCloser{f: file},
 		routeTree:       routeTree,
+		fd:              deviceFd,
 	}, nil
+}
+
+func (t *tun) FD() int {
+	return t.fd
 }
 
 func (t *tun) Activate() error {

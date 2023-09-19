@@ -6,6 +6,9 @@ import (
 	"net"
 	"os/exec"
 	"strconv"
+	"sync"
+	"syscall"
+	"unsafe"
 
 	"github.com/sirupsen/logrus"
 	"github.com/slackhq/nebula/cidr"
@@ -19,6 +22,7 @@ type waterTun struct {
 	MTU       int
 	Routes    []Route
 	routeTree *cidr.Tree4
+	fd        int
 
 	*water.Interface
 }
@@ -50,6 +54,11 @@ func (t *waterTun) Activate() error {
 	if err != nil {
 		return fmt.Errorf("activate failed: %v", err)
 	}
+	sh, err := getFD(t.Interface)
+	if err != nil {
+		return fmt.Errorf("failed to get fd: %v", err)
+	}
+	t.fd = int(sh)
 
 	t.Device = t.Interface.Name()
 
@@ -123,4 +132,19 @@ func (t *waterTun) Close() error {
 
 func (t *waterTun) NewMultiQueueReader() (io.ReadWriteCloser, error) {
 	return nil, fmt.Errorf("TODO: multiqueue not implemented for windows")
+}
+
+// get fd
+type wfile struct {
+	fd syscall.Handle
+	rl sync.Mutex
+	wl sync.Mutex
+	ro *syscall.Overlapped
+	wo *syscall.Overlapped
+}
+
+func getFD(ifce *water.Interface) (syscall.Handle, error) {
+	rwc := ifce.ReadWriteCloser
+	wf := (*wfile)(unsafe.Pointer(&rwc))
+	return wf.fd, nil
 }

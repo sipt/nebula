@@ -25,6 +25,7 @@ type winTun struct {
 	MTU       int
 	Routes    []Route
 	routeTree *cidr.Tree4
+	fd        int
 
 	tun *wintun.NativeTun
 }
@@ -76,6 +77,7 @@ func newWinTun(l *logrus.Logger, deviceName string, cidr *net.IPNet, defaultMTU 
 		MTU:       defaultMTU,
 		Routes:    routes,
 		routeTree: routeTree,
+		fd:        int(tunDevice.File().Fd()),
 
 		tun: tunDevice.(*wintun.NativeTun),
 	}, nil
@@ -180,4 +182,8 @@ func (t *winTun) Close() error {
 	_ = luid.FlushDNS(windows.AF_INET)
 
 	return t.tun.Close()
+}
+
+func (t *winTun) FD() int {
+	return t.fd
 }

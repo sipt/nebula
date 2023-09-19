@@ -31,8 +31,13 @@ type tun struct {
 	Routes    []Route
 	routeTree *cidr.Tree4
 	l         *logrus.Logger
+	fd        int
 
 	io.ReadWriteCloser
+}
+
+func (t *tun) FD() int {
+	return t.fd
 }
 
 func (t *tun) Close() error {
@@ -92,6 +97,7 @@ func newTun(l *logrus.Logger, deviceName string, cidr *net.IPNet, defaultMTU int
 		Routes:          routes,
 		routeTree:       routeTree,
 		l:               l,
+		fd:              int(file.Fd()),
 	}, nil
 }
 

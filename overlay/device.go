@@ -14,4 +14,5 @@ type Device interface {
 	Name() string
 	RouteFor(iputil.VpnIp) iputil.VpnIp
 	NewMultiQueueReader() (io.ReadWriteCloser, error)
+	FD() int
 }

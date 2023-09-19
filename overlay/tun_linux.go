@@ -135,6 +135,10 @@ func newTun(l *logrus.Logger, deviceName string, cidr *net.IPNet, defaultMTU int
 	return t, nil
 }
 
+func (t *tun) FD() int {
+	return t.fd
+}
+
 func (t *tun) NewMultiQueueReader() (io.ReadWriteCloser, error) {
 	fd, err := unix.Open("/dev/net/tun", os.O_RDWR, 0)
 	if err != nil {

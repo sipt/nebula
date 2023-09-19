@@ -27,6 +27,7 @@ type tun struct {
 	Routes     []Route
 	routeTree  *cidr.Tree4
 	l          *logrus.Logger
+	fd         int
 
 	// cache out buffer since we need to prepend 4 bytes for tun metadata
 	out []byte
@@ -150,6 +151,7 @@ func newTun(l *logrus.Logger, name string, cidr *net.IPNet, defaultMTU int, rout
 		Routes:          routes,
 		routeTree:       routeTree,
 		l:               l,
+		fd:              int(file.Fd()),
 	}
 
 	return tun, nil
@@ -164,6 +166,10 @@ func (t *tun) deviceBytes() (o [16]byte) {
 
 func newTunFromFd(_ *logrus.Logger, _ int, _ *net.IPNet, _ int, _ []Route, _ int, _ bool) (*tun, error) {
 	return nil, fmt.Errorf("newTunFromFd not supported in Darwin")
+}
+
+func (t *tun) FD() int {
+	return t.fd
 }
 
 func (t *tun) Close() error {
@@ -203,6 +209,11 @@ func (t *tun) Activate() error {
 
 	// Set the device ip address
 	if err = ioctl(fd, unix.SIOCSIFADDR, uintptr(unsafe.Pointer(&ifra))); err != nil {
+		return fmt.Errorf("failed to set tun address: %s", err)
+	}
+
+	// Set the device ip address
+	if err = ioctl(fd, unix.SIOCSIFDSTADDR, uintptr(unsafe.Pointer(&ifra))); err != nil {
 		return fmt.Errorf("failed to set tun address: %s", err)
 	}
 
@@ -344,7 +355,7 @@ func addRoute(sock int, addr, mask *netroute.Inet4Addr, link *netroute.LinkAddr)
 	r := netroute.RouteMessage{
 		Version: unix.RTM_VERSION,
 		Type:    unix.RTM_ADD,
-		Flags:   unix.RTF_UP,
+		Flags:   unix.RTF_UP | unix.RTF_STATIC | unix.RTF_GATEWAY,
 		Seq:     1,
 		Addrs: []netroute.Addr{
 			unix.RTAX_DST:     addr,
@@ -362,6 +373,26 @@ func addRoute(sock int, addr, mask *netroute.Inet4Addr, link *netroute.LinkAddr)
 		return fmt.Errorf("failed to write route.RouteMessage to socket: %w", err)
 	}
 
+	r = netroute.RouteMessage{
+		Version: unix.RTM_VERSION,
+		Type:    unix.RTM_ADD,
+		Flags:   unix.RTF_UP | unix.RTF_HOST,
+		Seq:     2,
+		Addrs: []netroute.Addr{
+			unix.RTAX_DST:     addr,
+			unix.RTAX_GATEWAY: link,
+			unix.RTAX_NETMASK: mask,
+		},
+	}
+
+	data, err = r.Marshal()
+	if err != nil {
+		return fmt.Errorf("failed to create route.RouteMessage: %w", err)
+	}
+	_, err = unix.Write(sock, data[:])
+	if err != nil {
+		return fmt.Errorf("failed to write route.RouteMessage to socket: %w", err)
+	}
 	return nil
 }
 

@@ -39,6 +39,10 @@ func newDisabledTun(cidr *net.IPNet, queueLen int, metricsEnabled bool, l *logru
 	return tun
 }
 
+func (*disabledTun) FD() int {
+	return 0
+}
+
 func (*disabledTun) Activate() error {
 	return nil
 }
